@@ -1,0 +1,19 @@
+[project]
+name = "lbs-core"
+version = "0.1.0"
+description = "Детерминированный анализатор несущий/сцена (load-bearing vs scaffolding) для attack graphs"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Marsel" }]
+keywords = ["security", "attack-graph", "ai-safety", "web3", "analysis"]
+
+[project.scripts]
+lbs-core = "lbs_core.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["lbs_core*"]
