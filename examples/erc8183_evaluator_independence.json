@@ -1,0 +1,33 @@
+{
+  "title": "ERC-8183 evaluator-independence bypass (упрощённая модель)",
+  "goal": "attack_succeeds",
+  "nodes": {
+    "attack_succeeds": "Злоумышленный агент проводит расчёт по завышенной оценке в обход независимой проверки",
+    "eval_output_trusted": "Расчётный контракт принимает вердикт оценщика как основание для расчёта",
+    "eval_compromised": "Вердикт оценщика отражает интерес злоумышленника, а не независимую оценку",
+    "shared_input_channel": "Оценщик и оцениваемый агент получают вход по одному каналу, контролируемому агентом",
+    "no_input_attestation": "Отсутствует криптографическая аттестация происхождения входа оценщика",
+    "collusion_incentive": "Экономический стимул к сговору оценщика с агентом положителен",
+    "stake_below_gain": "Стейк оценщика ниже выгоды от искажённой оценки",
+    "no_independent_reeval": "Отсутствует независимая переоценка вторым оценщиком",
+    "cosmetic_audit_badge": "Протокол отображает бейдж 'audited', создающий впечатление защищённости",
+    "verbose_logging": "Включено подробное логирование действий оценщика"
+  },
+  "edges": [
+    { "id": "e1", "tail": ["eval_output_trusted", "eval_compromised"], "head": "attack_succeeds" },
+    { "id": "e2", "tail": ["shared_input_channel", "no_input_attestation"], "head": "eval_compromised" },
+    { "id": "e3", "tail": ["collusion_incentive"], "head": "eval_compromised" },
+    { "id": "e4", "tail": ["stake_below_gain"], "head": "collusion_incentive" }
+  ],
+  "sigma": [
+    {
+      "id": "s_reeval",
+      "excludes_node": "no_independent_reeval",
+      "added_edges": [
+        { "id": "s_reeval_e1", "tail": ["shared_input_channel", "no_input_attestation"], "head": "eval_compromised" }
+      ]
+    }
+  ],
+  "sigma_completeness": "best_effort",
+  "_note_for_reader": "eval_compromised достижим ДВУМЯ путями: через (shared_input_channel + no_input_attestation) ЛИБО через collusion_incentive. Поэтому эти пути по отдельности — сцена, а вместе несущие (co-load-bearing). eval_output_trusted и eval_compromised — несущие (без любого из них конъюнкция e1 рушится). cosmetic_audit_badge и verbose_logging в граф вывода атаки не входят вовсе — они присутствуют в системе, но атаку не несут: чистая декоративная сцена."
+}
