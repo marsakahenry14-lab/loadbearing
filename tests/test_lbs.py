@@ -109,3 +109,21 @@ def test_erc8183_example_shape():
     assert rep.verdicts["verbose_logging"].label == Label.SC
     # есть совместно несущие множества размера 2
     assert any(len(m) == 2 for m in rep.mlbs_sets)
+
+
+def test_potpie_case_shape():
+    """Реальный кейс (cases/potpie-context-provenance): несущее ядро — отсутствие
+    trust-поля в схеме и точка записи claim; все 4 ingress + 7 egress каналов —
+    сцена по отдельности (патч одного не ломает атаку, пока жив альтернативный).
+    См. cases/potpie-context-provenance/WRITEUP.md и SOURCES.md."""
+    from pathlib import Path
+    from lbs_core.loader import load_scenario
+    path = Path(__file__).parent.parent / "cases" / "potpie-context-provenance" / "scenario.json"
+    sc = load_scenario(path)
+    rep = analyze(sc.graph, sigma=sc.sigma, sigma_completeness=sc.sigma_completeness)
+    assert rep.verdicts["schema_no_trust_field"].label == Label.LB
+    assert rep.verdicts["claim_written"].label == Label.LB
+    assert rep.counts[Label.LB.value] == 3       # goal + 2 root-cause nodes
+    assert rep.counts[Label.SC.value] == 11       # 4 ingress + 7 egress (E-7 disproved & removed)
+    assert rep.counts[Label.UND.value] == 0
+    assert "e7_context_engine_api" not in sc.graph.nodes  # disproved at code level, see SOURCES.md

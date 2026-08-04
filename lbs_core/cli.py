@@ -17,6 +17,13 @@ from .loader import load_scenario
 from .classify import analyze, Label
 from .report import render_report
 
+# Вывод содержит кириллицу и не-ASCII символы (→, Σ); консоль Windows по
+# умолчанию использует cp1252/cp866 и падает на encode. Принудительно
+# переключаем stdout/stderr на UTF-8, если интерпретатор это позволяет.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 
 def _report_to_dict(scenario, report) -> dict:
     return {

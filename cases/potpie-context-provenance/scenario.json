@@ -1,0 +1,39 @@
+{
+  "title": "Potpie Context Graph: trust-provenance loss (potpie-context-provenance, Aug 2026)",
+  "goal": "agent_context_poisoned",
+  "nodes": {
+    "agent_context_poisoned": "Атакующий контент доходит до внешнего кодового агента (Claude Code/Cursor/Codex) неотличимым от доверенного контекста",
+    "claim_written": "Reconciliation-LLM записывает вредоносный текст в ClaimRow.fact/description без пометки происхождения (Stage 2->3, ClaimRow/EvidenceItem)",
+    "schema_no_trust_field": "Схема ClaimRow/EvidenceItem в potpie-context-core не содержит поля trust/provenance; truth/confidence/evidence_strength — про эпистемическую, не про security-достоверность (root cause, verified directly через dataclasses.fields())",
+
+    "i1_github_webhook_no_author_gate": "I-1: GitHub webhook — _verify_signature() проверяет только что доставка от GitHub, не проверяет author_association/collaborator автора issue (verified directly, connector.py:266-270)",
+    "i2_linear_webhook_secret_optional": "I-2: Linear webhook — проверка подписи пропускается целиком, если LINEAR_WEBHOOK_SECRET не задан (verified directly, sources_router.py:317-332)",
+    "i3_agent_mediated_ingestion": "I-3: skill potpie-source-ingestion — агент в сессии сам читает PR/issue/тикеты и пишет claims; обязательные поля только эпистемические (verified directly для цели скилла, reported для отсутствия warning по всему файлу)",
+    "i4_context_record_api": "I-4: POST /context/record — ContextRecordPayload (pydantic) валидирует summary только структурно (min_length=1), содержимого не проверяет; require_api_key fail-closed по умолчанию, но это аутентификация отправителя, не проверка текста (verified directly, router.py:225-231,1388-1459 @ potpie-ai/potpie b5a67742, 2026-08-04 re-verification)",
+
+    "e1_nudge_hook_unfenced": "E-1: render_output() вставляет str(text) в additionalContext/systemMessage хука SessionStart/PreToolUse/PostToolUse/Stop без fence/тега; срабатывает автоматически (verified directly, potpie_nudge.py:397-422)",
+    "e2_cli_read_verbatim": "E-2: `potpie graph read --relations full` печатает fact дословно в plain text (verified directly, read_presenter.py)",
+    "e3_graph_neighborhood_full": "E-3: `potpie graph neighborhood --detail full` возвращает properties узла без фильтрации (verified directly чтением кода, graph.py:1449-1466)",
+    "e4_graph_search_entities": "E-4: `potpie graph search-entities` отдаёт summary/description + supporting_claims с сырым fact (reported, re-verified: тот же claim_payload())",
+    "e5_inline_relations": "E-5: inline relations в `graph read` — _assemble_inline_relation_items()/_relation_payload() кладёт payload['fact'] сырым в каждый relation-item, без фильтрации (verified directly, graph_service.py:1490,1637-1669 @ potpie-ai/potpie b5a67742, 2026-08-04 re-verification)",
+    "e6_daemon_http_ui": "E-6: Daemon HTTP UI (/api/graph,/api/neighborhood,/api/read,/api/search) — properties без фильтрации содержимого, ограничено localhost+bearer token (verified directly для dump-поведения, reported для деталей gate)",
+    "e8_secondary_stdout_channels": "E-8: `graph inbox list/show`, `graph quality *`, `graph history` печатают summary/finding дословно через f-string без fencing (_inbox_human/_quality_human/_history_human, cli/commands/graph.py:3562-3614); `timeline recent` идёt через тот же read-pipeline, что и E-2 (verified directly @ potpie-ai/potpie b5a67742, 2026-08-04 re-verification)"
+  },
+  "edges": [
+    { "id": "e_in1", "tail": ["i1_github_webhook_no_author_gate", "schema_no_trust_field"], "head": "claim_written" },
+    { "id": "e_in2", "tail": ["i2_linear_webhook_secret_optional", "schema_no_trust_field"], "head": "claim_written" },
+    { "id": "e_in3", "tail": ["i3_agent_mediated_ingestion", "schema_no_trust_field"], "head": "claim_written" },
+    { "id": "e_in4", "tail": ["i4_context_record_api", "schema_no_trust_field"], "head": "claim_written" },
+
+    { "id": "e_out1", "tail": ["claim_written", "e1_nudge_hook_unfenced"], "head": "agent_context_poisoned" },
+    { "id": "e_out2", "tail": ["claim_written", "e2_cli_read_verbatim"], "head": "agent_context_poisoned" },
+    { "id": "e_out3", "tail": ["claim_written", "e3_graph_neighborhood_full"], "head": "agent_context_poisoned" },
+    { "id": "e_out4", "tail": ["claim_written", "e4_graph_search_entities"], "head": "agent_context_poisoned" },
+    { "id": "e_out5", "tail": ["claim_written", "e5_inline_relations"], "head": "agent_context_poisoned" },
+    { "id": "e_out6", "tail": ["claim_written", "e6_daemon_http_ui"], "head": "agent_context_poisoned" },
+    { "id": "e_out8", "tail": ["claim_written", "e8_secondary_stdout_channels"], "head": "agent_context_poisoned" }
+  ],
+  "sigma": [],
+  "sigma_completeness": "enumerated",
+  "_note_for_reader": "Граф построен по RESEARCH.md и docs/VECTOR-MAP.md репозитория potpie-context-provenance (state: potpie-ai/potpie @ b5a67742). Все известные ingress- и egress-каналы уже закодированы как дизъюнктивные гипердуги (несколько дуг с одним head) — Σ пуст и не нужен, потому что альтернативные пути не гипотетические, а реально задокументированные в vector map. sigma_completeness=enumerated отражает это: LB-вердикты здесь НЕ условны на неполноте Σ, они условны только на полноте самого vector map. Ожидаемый результат: schema_no_trust_field и claim_written — LB (единственные истинно несущие узлы, совпадает с тезисом Q5 в RESEARCH.md); все i*/e* по отдельности — SC (патч одного канала не ломает атаку, пока жив хоть один альтернативный).\n\n2026-08-04 re-verification (см. SOURCES.md): 4 узла, помеченных в исходном vector map как 'reported, not independently re-verified' (I-4, E-5, E-7, E-8), были перепроверены напрямую по коду potpie-ai/potpie@b5a67742. Три подтвердились (I-4, E-5, E-8 — тексты узлов обновлены, добавлены file:line). Четвёртый — E-7 (/context/graph/query) — НЕ подтвердился: на этом коммите эндпоинт /context/query/context-graph является заглушкой, всегда возвращает HTTP 501 и не отдаёт данных графа. Узел e7_context_engine_api и ребро e_out7 удалены из графа как опровергнутые. Это не меняет несущее ядро (schema_no_trust_field/claim_written остаются LB), но меняет состав сцены (SC) с 12 до 11 узлов и является отдельным методологическим результатом: differential re-verification поймала устаревшее/неверное утверждение в изначально опубликованном vector map."
+}
