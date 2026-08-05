@@ -171,3 +171,25 @@ def test_potpie_graphrag_case_shape():
     assert rep.counts[Label.UND.value] == 0
     assert len(rep.mlbs_sets) == 7
     assert all(len(m) == 1 for m in rep.mlbs_sets)
+
+
+def test_acp_node_v2_case_shape():
+    """Реальный кейс (cases/acp-node-v2-evaluator-injection): оригинальная
+    находка (не формализация чужого disclosure). Живая цепочка в текущем
+    форке acp-node-v2 — deliverable, помеченный role:"system" в core SDK,
+    коллапсирует в role:"user" в shipped LLM-примерах, ровно когда evaluator
+    получает доступ к complete()/reject(). Все 6 узлов + цель — LB, сцены нет
+    (как и в potpie-graphrag, но эта цепочка ЖИВАЯ, не историческая).
+    См. cases/acp-node-v2-evaluator-injection/WRITEUP.md и SOURCES.md
+    (включая раздел про disclosure status)."""
+    from pathlib import Path
+    from lbs_core.loader import load_scenario
+    path = Path(__file__).parent.parent / "cases" / "acp-node-v2-evaluator-injection" / "scenario.json"
+    sc = load_scenario(path)
+    rep = analyze(sc.graph, sigma=sc.sigma, sigma_completeness=sc.sigma_completeness)
+    assert rep.verdicts["deliverable_tagged_system_role"].label == Label.LB
+    assert rep.verdicts["escrow_released_on_injected_verdict"].label == Label.LB
+    assert rep.counts[Label.LB.value] == 7
+    assert rep.counts[Label.SC.value] == 0
+    assert rep.counts[Label.UND.value] == 0
+    assert len(rep.mlbs_sets) == 7
