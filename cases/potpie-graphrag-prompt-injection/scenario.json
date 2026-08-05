@@ -1,0 +1,23 @@
+{
+  "title": "Potpie GraphRAG indirect prompt injection — docstring payload to tool execution (potpie-graphrag-prompt-injection, part 1, March 2026)",
+  "goal": "injected_instruction_executed",
+  "nodes": {
+    "attacker_opens_pr_with_payload": "Attacker opens a pull request containing an instruction-shaped payload embedded in a docstring/comment — attacker needs only the ability to open a PR (verified directly, ADVISORY.md 'Attack vector' step 1; payload verbatim in honeypot/app/schemas/compliance.py:7-19)",
+    "parsing_no_data_instruction_tag": "Root cause (pre-existing platform property, not attacker-supplied): Potpie parses code via tree-sitter + blar-graph and stores the result in Neo4j as a knowledge-graph node with no distinction between code data and system instructions (verified directly, ADVISORY.md 'Root cause' and 'Vulnerability details' steps 2-3)",
+    "graphrag_retrieves_payload": "Potpie's agent retrieves the payload-carrying node via the GraphRAG pipeline during ordinary code analysis, with no data/instruction filtering applied at retrieval either (verified directly, ADVISORY.md step 4)",
+    "llm_context_mixed": "The LLM receives the payload as part of its context, indistinguishable from legitimate instructions, because nothing upstream tagged it otherwise (verified directly, ADVISORY.md step 5, first half)",
+    "model_executes_directive": "The model complies with the embedded directive and issues the corresponding tool call (empirically config-dependent — see SOURCES.md: gpt-4.1-mini did this, claude-sonnet-4-6 refused, in the same test)",
+    "tool_executes_outbound": "The agent's `http_fetch` tool executes an outbound GET request to the attacker's OAST domain, permitted by the test harness's own domain allowlist (`*.oast.fun`, `*.interactsh.com`) (verified directly, docs/EVIDENCE.md 'Execution configuration' / 'Test environment')",
+    "injected_instruction_executed": "External confirmation that the embedded instruction executed: Interactsh callback received (200 OK, 2026-03-07 09:54 UTC, 3-interaction callback chain) (verified directly, ADVISORY.md 'Proof of concept', docs/EVIDENCE.md 'Callback confirmation')"
+  },
+  "edges": [
+    { "id": "e1", "tail": ["attacker_opens_pr_with_payload", "parsing_no_data_instruction_tag"], "head": "graphrag_retrieves_payload" },
+    { "id": "e2", "tail": ["graphrag_retrieves_payload"], "head": "llm_context_mixed" },
+    { "id": "e3", "tail": ["llm_context_mixed"], "head": "model_executes_directive" },
+    { "id": "e4", "tail": ["model_executes_directive"], "head": "tool_executes_outbound" },
+    { "id": "e5", "tail": ["tool_executes_outbound"], "head": "injected_instruction_executed" }
+  ],
+  "sigma": [],
+  "sigma_completeness": "best_effort",
+  "_note_for_reader": "Граф построен по ADVISORY.md/docs/EVIDENCE.md репозитория potpie-graphrag-prompt-injection (state: marsakahenry14-lab/potpie-graphrag-prompt-injection @ 7bf76d1, cloned fresh 2026-08-05). Affected version — pre-v2.0.0 архитектура potpie-ai/potpie, март 2026; это ИСТОРИЧЕСКАЯ находка, не текущее состояние.\n\nЭто линейная цепочка: каждый узел необходим предыдущему, дизъюнкции нет. При sigma=[] все 6 узлов + цель классифицируются как LB — это ожидаемо и не баг: в отличие от erc8183-evaluator-integrity и potpie-context-provenance, где реальная архитектура даёт альтернативные пути, здесь задокументирован единственный последовательный kill chain. Инструмент честно не находит сцену там, где её нет.\n\nНАМЕРЕННОЕ ОТКЛОНЕНИЕ от первоначального наброска кейса: model_vulnerable/model_resilient (gpt-4.1-mini vs claude-sonnet-4-6) и tool_allowlist_permits_oast изначально предполагались как Σ-замены. Не кодирую их так — по той же причине, что и 5-implementation ecosystem check в erc8183-evaluator-integrity: это проверка того, выполняется ли предусловие узла в КОНКРЕТНОЙ тестовой конфигурации, а не альтернативный путь к ТОЙ ЖЕ цели в обход узла. Σ отвечает на 'есть ли другой механизм, не использующий этот узел', а не 'выполняется ли предусловие в этом конкретном прогоне'. См. SOURCES.md.\n\n2026-08-05 re-verification: старый пайплайн (tree-sitter+blar-graph → Neo4j без DATA/INSTRUCTION тега) подтверждённо отсутствует в текущем potpie-ai/potpie (0 совпадений на 'blar-graph' в поиске по репозиторию; парсинг переехал в новый Rust-модуль potpie/parsing/). Это не опровержение — ADVISORY.md сам заявляет pre-v2.0.0 scope. Тот же инвариант (отсутствие provenance/trust) переоткрыт в новой архитектуре и независимо подтверждён в cases/potpie-context-provenance (schema_no_trust_field, LB-ядро)."
+}

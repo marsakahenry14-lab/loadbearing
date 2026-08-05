@@ -150,3 +150,24 @@ def test_erc8183_evaluator_integrity_case_shape():
     assert rep.counts[Label.UND.value] == 0
     pairs = [m for m in rep.mlbs_sets if len(m) == 2]
     assert len(pairs) == 4
+
+
+def test_potpie_graphrag_case_shape():
+    """Реальный кейс (cases/potpie-graphrag-prompt-injection): строго
+    последовательная цепочка (март 2026, pre-v2.0.0 Potpie) — все 6 узлов +
+    цель классифицируются как LB, сцены нет вообще. Контрольный кейс:
+    инструмент не изобретает структуру там, где её нет. Model choice и
+    tool allowlist намеренно НЕ закодированы как Σ — см. SOURCES.md.
+    См. cases/potpie-graphrag-prompt-injection/WRITEUP.md."""
+    from pathlib import Path
+    from lbs_core.loader import load_scenario
+    path = Path(__file__).parent.parent / "cases" / "potpie-graphrag-prompt-injection" / "scenario.json"
+    sc = load_scenario(path)
+    rep = analyze(sc.graph, sigma=sc.sigma, sigma_completeness=sc.sigma_completeness)
+    assert rep.verdicts["parsing_no_data_instruction_tag"].label == Label.LB
+    assert rep.verdicts["injected_instruction_executed"].label == Label.LB
+    assert rep.counts[Label.LB.value] == 7
+    assert rep.counts[Label.SC.value] == 0
+    assert rep.counts[Label.UND.value] == 0
+    assert len(rep.mlbs_sets) == 7
+    assert all(len(m) == 1 for m in rep.mlbs_sets)

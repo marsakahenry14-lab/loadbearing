@@ -121,6 +121,32 @@ population checked). See
 findings coexist and [`SOURCES.md`](cases/erc8183-evaluator-integrity/SOURCES.md)
 for the per-node evidence.
 
+### Potpie GraphRAG indirect prompt injection (part 1) — the control case
+
+[`cases/potpie-graphrag-prompt-injection/`](cases/potpie-graphrag-prompt-injection/)
+analyzes an earlier disclosure against the same target as the first case above
+([`potpie-graphrag-prompt-injection`](https://github.com/marsakahenry14-lab/potpie-graphrag-prompt-injection),
+March 2026): a docstring payload in a pull request flows, unfiltered, through
+`tree-sitter`/`blar-graph` parsing, Neo4j storage, and GraphRAG retrieval into
+an LLM agent's context, which then executes an outbound tool call — confirmed
+by a live OAST callback.
+
+Unlike the other two cases, this attack is a single documented kill chain with
+no disjunction, and `loadbearing` reports exactly that: all seven nodes
+load-bearing, zero scaffolding. That's the point of including it — proof the
+tool doesn't manufacture structure where a real attack genuinely has none. The
+case also declines, and documents why, an initially-tempting use of Σ to
+encode model choice (`gpt-4.1-mini` vulnerable vs. `claude-sonnet-4-6`
+resilient) and a tool's domain allowlist — both are configuration-dependent
+preconditions, not alternative mechanisms, the same distinction the previous
+case's ecosystem check is built on. A re-verification pass confirms the
+described pipeline no longer exists in current `potpie-ai/potpie` (`blar-graph`
+returns zero hits in the current codebase) — consistent with the disclosure's
+own pre-v2.0.0 scope, and with the first case above finding the same
+underlying provenance gap resurfaced in the rewrite. See
+[`WRITEUP.md`](cases/potpie-graphrag-prompt-injection/WRITEUP.md) and
+[`SOURCES.md`](cases/potpie-graphrag-prompt-injection/SOURCES.md).
+
 ### Synthetic: ERC-8183 evaluator independence
 
 `examples/erc8183_evaluator_independence.json` models a simplified scenario of
