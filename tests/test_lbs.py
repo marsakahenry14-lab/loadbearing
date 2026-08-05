@@ -127,3 +127,26 @@ def test_potpie_case_shape():
     assert rep.counts[Label.SC.value] == 11       # 4 ingress + 7 egress (E-7 disproved & removed)
     assert rep.counts[Label.UND.value] == 0
     assert "e7_context_engine_api" not in sc.graph.nodes  # disproved at code level, see SOURCES.md
+
+
+def test_erc8183_evaluator_integrity_case_shape():
+    """Реальный кейс (cases/erc8183-evaluator-integrity): несущее ядро — вся цепочка
+    от контроля провайдера над deliverable до verdict_flipped (7 узлов, включая
+    цель); две downstream-ветки (escrow / reputation) — сцена по отдельности, но
+    дают 4 совместно несущих пары (crossing двух независимых путей) — тот же
+    сигнатурный паттерн, что и в синтетическом examples/erc8183_evaluator_independence.json.
+    См. cases/erc8183-evaluator-integrity/WRITEUP.md и SOURCES.md."""
+    from pathlib import Path
+    from lbs_core.loader import load_scenario
+    path = Path(__file__).parent.parent / "cases" / "erc8183-evaluator-integrity" / "scenario.json"
+    sc = load_scenario(path)
+    rep = analyze(sc.graph, sigma=sc.sigma, sigma_completeness=sc.sigma_completeness)
+    assert rep.verdicts["channel_collapse_no_boundary"].label == Label.LB
+    assert rep.verdicts["verdict_flipped"].label == Label.LB
+    assert rep.verdicts["sink_atomic_no_dispute"].label == Label.SC
+    assert rep.verdicts["reputation_write_on_complete"].label == Label.SC
+    assert rep.counts[Label.LB.value] == 7
+    assert rep.counts[Label.SC.value] == 4
+    assert rep.counts[Label.UND.value] == 0
+    pairs = [m for m in rep.mlbs_sets if len(m) == 2]
+    assert len(pairs) == 4

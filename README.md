@@ -68,10 +68,10 @@ Verdicts (semantics fixed by the LBS v0.1 specification):
 
 ## Cases
 
-The most substantive artifact in this repository is a real-world case, not a
-synthetic one.
+The most substantive artifacts in this repository are real-world cases, not
+the synthetic one.
 
-### Primary: Potpie Context Graph — trust-provenance loss
+### Potpie Context Graph — trust-provenance loss
 
 [`cases/potpie-context-provenance/`](cases/potpie-context-provenance/) analyzes
 a real disclosure
@@ -93,6 +93,33 @@ be a stub that always returns HTTP 501 — and removed from the graph. See
 [`WRITEUP.md`](cases/potpie-context-provenance/WRITEUP.md) for the full
 analysis and [`SOURCES.md`](cases/potpie-context-provenance/SOURCES.md) for
 the per-node evidence.
+
+### ERC-8183 evaluator injection — channel collapse into an irreversible sink
+
+[`cases/erc8183-evaluator-integrity/`](cases/erc8183-evaluator-integrity/)
+analyzes a different domain (Web3 job escrow) and a different disclosure
+([`erc8183-evaluator-integrity`](https://github.com/marsakahenry14-lab/erc8183-evaluator-integrity)):
+ERC-8183's `complete(jobId)` atomically records an evaluator's verdict and
+releases escrow, with no dispute path afterward. If an LLM-backed evaluator
+concatenates its own policy and an untrusted `deliverable` field into one flat
+prompt — a channel collapse, the root cause — an attacker-controlled
+deliverable can flip the verdict and drain escrow, optionally also falsifying
+an ERC-8004 reputation record in the same call.
+
+`loadbearing` classifies the entire causal chain up to the flipped verdict as
+load-bearing, and finds four co-load-bearing pairs crossing the two
+independent downstream sinks (escrow release, reputation write) — the same
+structural signature the repository's own synthetic example below was built
+to illustrate, this time on real spec text and a real reproduction harness.
+The case also carries a methodological point the disclosure itself makes
+explicit: a source-level check found that **zero of five real
+implementations** default to the vulnerable configuration — which does not
+contradict the load-bearing verdict above, it answers a different question
+(structural necessity within the pattern vs. empirical prevalence in the
+population checked). See
+[`WRITEUP.md`](cases/erc8183-evaluator-integrity/WRITEUP.md) for why those two
+findings coexist and [`SOURCES.md`](cases/erc8183-evaluator-integrity/SOURCES.md)
+for the per-node evidence.
 
 ### Synthetic: ERC-8183 evaluator independence
 
