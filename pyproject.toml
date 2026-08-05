@@ -1,7 +1,7 @@
 [project]
 name = "loadbearing"
 version = "0.1.0"
-description = "Детерминированный анализатор несущий/сцена (load-bearing vs scaffolding) для attack graphs"
+description = "Deterministic load-bearing vs. scaffolding analyzer for attack graphs"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
