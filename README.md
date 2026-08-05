@@ -1,103 +1,143 @@
-# lbs-core
+# loadbearing
 
-Детерминированный анализатор **несущий механизм / сцена** (load-bearing vs scaffolding)
-для графов атак и графов вывода. Дан граф, описывающий, как достигается некое свойство
-(атака проходит / инвариант безопасности нарушается) — инструмент говорит, какие
-компоненты **несут** это свойство, а какие лишь присутствуют.
+A deterministic **load-bearing vs. scaffolding** analyzer for attack graphs and
+inference graphs. Given a graph describing how some property is achieved (an
+attack succeeds / a security invariant is violated), the tool says which
+components actually **carry** that property and which are merely present.
 
-Задача, которую он решает: в анализе безопасности агентных и Web3-систем механизмов
-обычно много, а несёт свойство небольшое подмножество. `lbs-core` отделяет несущее ядро
-от декоративного окружения и находит **минимальные несущие множества** — комбинации
-условий, совместное устранение которых ломает атаку. Это вход для приоритизации
-контрмер: защищать несущие узлы, не тратить ресурс на сцену.
+The problem it solves: in security analysis of agentic and Web3 systems there
+are usually many mechanisms, and only a small subset actually carries the
+property. `loadbearing` separates the load-bearing core from decorative
+surroundings and finds **minimal load-bearing sets** — combinations of
+conditions whose joint removal breaks the attack. This is the input for
+countermeasure prioritization: defend the load-bearing nodes, don't spend
+resources on scaffolding.
 
-Инструмент детерминирован, не обращается к сети и не использует LLM. Один и тот же вход
-всегда даёт один и тот же вердикт.
+The tool is deterministic, makes no network calls, and uses no LLM. The same
+input always produces the same verdict.
 
-## Установка и запуск
+See [`VISION.md`](VISION.md) for why this repository exists.
+
+## Install and run
 
 ```bash
-git clone <repo>
-cd lbs-core
+git clone https://github.com/marsakahenry14-lab/loadbearing.git
+cd loadbearing
 python3 -m lbs_core.cli examples/erc8183_evaluator_independence.json
 ```
 
-Машиночитаемый вывод:
+Machine-readable output:
 
 ```bash
 python3 -m lbs_core.cli examples/erc8183_evaluator_independence.json --json
 ```
 
-Тесты:
+Tests:
 
 ```bash
 pip install pytest
 python3 -m pytest tests/ -v
 ```
 
-## Модель
+## Model
 
-Объект анализа — гиперграф вывода:
+The object of analysis is an inference hypergraph:
 
-- **узлы** — атомарные утверждения/условия;
-- **гипердуга** `tail → head` означает «множество условий `tail` **совместно**
-  достаточно для `head`»; обычное ребро — частный случай с одним условием в `tail`;
-- **дизъюнкция** (цель достижима через путь A **либо** путь B) выражается несколькими
-  гипердугами с одним `head`;
-- **цель** `gamma` — узел, достижимость которого проверяется;
-- **Σ** — пул допустимых замен (обходных подвыводов); задаётся экстенсионально.
+- **nodes** — atomic claims/conditions;
+- a **hyperedge** `tail → head` means "the set of conditions `tail` is
+  **jointly** sufficient for `head`"; an ordinary edge is the special case of
+  a single condition in `tail`;
+- **disjunction** (the goal is reachable via path A **or** path B) is
+  expressed as several hyperedges with the same `head`;
+- the **goal** `gamma` — the node whose reachability is being checked;
+- **Σ** — the pool of admissible substitutions (alternative sub-derivations);
+  given extensionally.
 
-Вердикты (семантика зафиксирована спецификацией LBS v0.1):
+Verdicts (semantics fixed by the LBS v0.1 specification):
 
-- **LB (несущий)** — ни одна допустимая замена не восстанавливает достижимость цели после
-  удаления узла (полный перебор Σ);
-- **SC (сцена)** — существует замена, восстанавливающая цель без этого узла (предъявляется
-  свидетель);
-- **UND (неопределённость)** — бюджет перебора исчерпан до полного; узел **не**
-  классифицируется как несущий (правило асимметрии: «не проверили» ≠ «замены нет»);
-- **MLBS** — минимальное несущее множество: минимальный набор узлов, одновременное
-  удаление которого ломает цель. Размер 1 = одиночный несущий узел. Размер ≥ 2 =
-  совместно несущие: по отдельности сцена, вместе необходимы.
+- **LB (load-bearing)** — no admissible substitution restores goal
+  reachability after the node is removed (full enumeration of Σ);
+- **SC (scaffolding)** — a substitution exists that restores the goal without
+  this node (a witness is produced);
+- **UND (undetermined)** — the enumeration budget was exhausted before a full
+  search completed; the node is **not** classified as load-bearing (asymmetry
+  rule: "not checked" ≠ "no substitution exists");
+- **MLBS** — minimal load-bearing set: the smallest set of nodes whose joint
+  removal breaks the goal. Size 1 = a single load-bearing node. Size ≥ 2 =
+  co-load-bearing: individually scaffolding, jointly necessary.
 
-## Пример: ERC-8183 evaluator independence
+## Cases
 
-`examples/erc8183_evaluator_independence.json` моделирует упрощённый сценарий обхода
-независимой оценки. Инструмент выделяет:
+The most substantive artifact in this repository is a real-world case, not a
+synthetic one.
 
-- **несущее ядро** (без чего атака невозможна): доверие к вердикту оценщика и сама
-  компрометация оценки;
-- **декоративную сцену**: бейдж `audited`, подробное логирование — присутствуют в
-  системе, но атаку не несут;
-- **четыре совместно несущих множества** — четыре способа перекрыть компрометацию
-  оценщика, выбив по одному условию из каждого независимого пути (общий канал ввода +
-  отсутствие аттестации, либо экономический стимул к сговору). Это готовый список точек
-  контроля для проектировщика контрмер.
+### Primary: Potpie Context Graph — trust-provenance loss
 
-## Границы применимости (важно)
+[`cases/potpie-context-provenance/`](cases/potpie-context-provenance/) analyzes
+a real disclosure
+([`potpie-context-provenance`](https://github.com/marsakahenry14-lab/potpie-context-provenance),
+CWE-1427): Potpie's `ClaimRow`/`EvidenceItem` schema has no trust/provenance
+field, so attacker-controlled content written through any of four ingress
+channels (GitHub/Linear webhooks, agent-mediated ingestion, a public API) can
+reach a coding agent through any of seven egress channels, indistinguishable
+from trusted context.
 
-Инструмент честен относительно того, чего он **не** делает:
+`loadbearing` mechanically reproduces the disclosure's central claim: the only
+load-bearing nodes are the missing trust field and the point where untrusted
+text becomes a claim — every ingress/egress channel is individually
+scaffolding. The case also documents a re-verification pass against the
+target's source at a pinned commit: three nodes originally marked "reported,
+not independently re-verified" were confirmed with file:line citations, and
+one (a claimed API egress channel) was disproved — the endpoint turned out to
+be a stub that always returns HTTP 501 — and removed from the graph. See
+[`WRITEUP.md`](cases/potpie-context-provenance/WRITEUP.md) for the full
+analysis and [`SOURCES.md`](cases/potpie-context-provenance/SOURCES.md) for
+the per-node evidence.
 
-- **Вердикт SC ≠ «безопасно».** Он означает «в этом сценарии, при этом Σ, удаление одного
-  этого узла не ломает цель». Смена сценария или расширение Σ может изменить вердикт.
-- **Полнота Σ не гарантируется.** При `sigma_completeness: best_effort` вердикт LB
-  условен: узел несущий, потому что замена не найдена в заданном Σ, а не потому что её
-  не существует. Инструмент помечает это в отчёте.
-- **Перебор экспоненциален** по размеру Σ и по размеру MLBS-множеств (ограничен
-  `--budget` и `--max-set-size`). Метод рассчитан на графы обозримого размера — реальные
-  attack trees это десятки узлов, где ограничение не мешает.
-- **Построение графа из текста — вне инструмента.** `lbs-core` анализирует уже
-  построенный граф; ответственность за корректность модели (что есть узел, куда идут
-  дуги, что входит в Σ) лежит на аналитике.
-- Инструмент не обнаруживает угрозы и не доказывает безопасность системы — он выполняет
-  **атрибуцию** внутри заданного сценария.
+### Synthetic: ERC-8183 evaluator independence
 
-## Происхождение
+`examples/erc8183_evaluator_independence.json` models a simplified scenario of
+bypassing independent evaluation. The tool identifies:
 
-Ядро семантики (гиперграф, предикат достижимости, правила классификации, минимальные
-несущие множества) следует спецификации LBS v0.1. При реализации спецификации на этом
-коде было найдено и закрыто шесть мест, где текст спецификации был недоопределён;
-каждое зафиксировано регрессионным тестом в `tests/test_lbs.py`.
+- a **load-bearing core** (without which the attack is impossible): trust in
+  the evaluator's verdict and the compromise of the evaluation itself;
+- **decorative scaffolding**: the `audited` badge, verbose logging — present
+  in the system but not carrying the attack;
+- **four co-load-bearing sets** — four ways to close off the evaluator
+  compromise, knocking out one condition from each independent path (shared
+  input channel plus absent attestation, or an economic incentive to collude).
+  This is a ready-made list of control points for a countermeasure designer.
 
-## Лицензия
+## Scope and limitations (important)
+
+The tool is honest about what it does **not** do:
+
+- **An SC verdict ≠ "safe."** It means "in this scenario, under this Σ,
+  removing this one node does not break the goal." Changing the scenario or
+  expanding Σ can change the verdict.
+- **Completeness of Σ is not guaranteed.** Under `sigma_completeness:
+  best_effort`, an LB verdict is conditional: the node is load-bearing because
+  no substitution was found in the given Σ, not because none exists. The tool
+  flags this in the report.
+- **Enumeration is exponential** in the size of Σ and in the size of MLBS sets
+  (bounded by `--budget` and `--max-set-size`). The method is designed for
+  graphs of tractable size — real attack trees are tens of nodes, where the
+  bound is not a hindrance.
+- **Building the graph from text is out of scope for the tool.** `loadbearing`
+  analyzes an already-built graph; responsibility for the correctness of the
+  model (what counts as a node, where edges go, what belongs in Σ) rests with
+  the analyst.
+- The tool does not discover threats and does not prove a system is safe — it
+  performs **attribution** within a given scenario.
+
+## Origin
+
+The core semantics (hypergraph, reachability predicate, classification rules,
+minimal load-bearing sets) follow the LBS v0.1 specification. While
+implementing the specification in this code, six places where the
+specification text was underdetermined were found and closed; each is pinned
+by a regression test in `tests/test_lbs.py`.
+
+## License
 
 MIT.

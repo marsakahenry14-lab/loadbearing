@@ -43,7 +43,7 @@ def _report_to_dict(scenario, report) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
-        prog="lbs-core",
+        prog="loadbearing",
         description="Детерминированный анализ несущий/сцена (LBS) для attack graphs.",
     )
     p.add_argument("scenario", help="путь к JSON-сценарию (attack graph)")

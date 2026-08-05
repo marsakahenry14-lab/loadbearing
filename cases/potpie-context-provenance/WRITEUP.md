@@ -23,7 +23,7 @@ CWE-1427) documents this as a context-poisoning primitive.
    channels are separate hyperedges into the same head, per the LBS
    convention — no `sigma` needed since the vector map already enumerates
    every known path (`sigma_completeness: enumerated`).
-2. Ran [`lbs-core`](../../README.md) to get a mechanical LB/SC verdict per
+2. Ran [`loadbearing`](../../README.md) to get a mechanical LB/SC verdict per
    node, independent of the prose conclusion in the original `RESEARCH.md`.
 3. Four nodes in the original vector map were tagged `"reported, not
    independently re-verified"`. Re-verified all four directly against
@@ -31,7 +31,7 @@ CWE-1427) documents this as a context-poisoning primitive.
 
 ## Result
 
-`lbs-core` mechanically reproduces the disclosure's central claim: the only
+`loadbearing` mechanically reproduces the disclosure's central claim: the only
 load-bearing nodes are `schema_no_trust_field` and `claim_written` — the
 missing trust field and the point where untrusted text becomes a claim. All
 ingress/egress channels are individually scaffolding (SC): patching any one
@@ -57,7 +57,7 @@ a disproved channel undermines the credibility of the ones that are real.
 The interesting output here isn't "12 vs 11 scaffolding nodes." It's that
 *mechanical* LB/SC classification and *manual* re-verification of evidence
 are separable, composable checks, and running both caught something neither
-would have caught alone: `lbs-core` doesn't know or care whether E-7 is real
+would have caught alone: `loadbearing` doesn't know or care whether E-7 is real
 — it only reasons about graph structure, so a stale claim baked into the
 graph would have sailed through as valid SC. Re-verification without a
 structural model would have found the same bug, but wouldn't tell you E-7
