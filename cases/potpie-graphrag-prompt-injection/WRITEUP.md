@@ -60,16 +60,16 @@ from two independent consequence paths) and `cases/potpie-context-provenance`
 case is the control case: proof the tool's structure-finding in the other two
 isn't a default behavior it applies regardless of input.
 
-## Why this case matters for the portfolio, not just the finding
+## Why this case matters as a method, not just a finding
 
 The interesting result across all three cases together is methodological
 consistency, not any one number. Twice now (here, and in the erc8183 case) a
 plausible-looking Σ opportunity was identified and then declined, for the same
 reason both times: Σ models alternative *paths*, not configuration-dependent
 *preconditions*. Getting this distinction right is what keeps an LB verdict
-meaningful — a tool that will absorb anything labeled "Σ" without checking
-whether it's actually an alternate mechanism would eventually launder an
-empirical prevalence question into a structural necessity claim, silently.
-Declining to do that here, and saying so explicitly rather than quietly using
-the richer framing, is the same standard this repository's cases hold their
-sources to.
+meaningful — a tool that absorbs anything labeled "Σ" without checking
+whether it's actually an alternate mechanism will eventually convert an
+empirical prevalence question into a structural necessity claim without
+anyone noticing. Declining to do that here, and stating the reason explicitly
+rather than quietly using the richer framing, is the same standard this
+repository's cases hold their sources to.

@@ -1,10 +1,8 @@
-# How the acp-node-v2 finding was actually found
+# How the acp-node-v2 finding was found
 
-> Internal working notes, not a polished disclosure document — see
-> `WRITEUP.md` and `SOURCES.md` for the citable version. This file exists to
-> answer one question honestly: *what did the process look like, technically,
-> minute to minute?* Not "I analyzed the SDK and found X" — the actual
-> sequence of greps, reads, and dead ends.
+> A methodology record, complementary to `WRITEUP.md` and `SOURCES.md`: the
+> concrete sequence of commands and source reads that produced the finding,
+> not a restatement of its conclusions.
 
 ## Why I was reading this code at all
 
