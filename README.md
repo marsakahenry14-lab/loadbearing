@@ -174,7 +174,7 @@ Virtuals' security team privately on 2026-06-29; no response at any point; the
 before, during, and after. See
 [`WRITEUP.md`](cases/acp-node-v2-evaluator-injection/WRITEUP.md),
 [`SOURCES.md`](cases/acp-node-v2-evaluator-injection/SOURCES.md) (full
-disclosure timeline and original report text), and
+disclosure timeline), and
 [`DISCOVERY-WALKTHROUGH.md`](cases/acp-node-v2-evaluator-injection/DISCOVERY-WALKTHROUGH.md)
 for the grep-by-grep account of how this was found.
 

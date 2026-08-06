@@ -94,40 +94,12 @@ second finding is not automatically the same finding.
 | Disclosure window | 30 days, closed 2026-07-29 |
 | This write-up published | 2026-08-06 (38 days after report, 8 days after window close) |
 
-The original report (excerpt, Finding 1 of a two-finding email — Finding 2
-was the unrelated, always-intended-for-immediate-publication on-chain
-research now in `virtuals-forensics`):
-
-> The `deliverable` field in `jobSession.ts:toMessages()` is concatenated
-> into the evaluator LLM context without sanitization or length constraints.
-> In the official `buyer.ts` example, the system→user role boundary
-> collapses before LLM evaluation, meaning provider-controlled content
-> reaches the evaluator model in user-turn context.
->
-> Full execution path confirmed via static review: `jobSession.ts:toMessages()`
-> → `acpAgent.internalComplete()` → `evmAcpClient.ts buildContractCall()` →
-> Alchemy userOp → escrow release.
->
-> The official example uses `gemini-3.1-flash-lite-preview` as evaluator. No
-> test suite covers this path (`package.json` test script is a stub).
->
-> I consider this an architectural gap rather than a demonstrated exploit
-> against strong frontier models. I'm reporting it privately and requesting
-> a 30-day window before any public discussion.
-
-This is the same file, the same function, and the same mechanism as the
-independent code-level analysis in this document and in `WRITEUP.md` —
-re-derived from scratch on 2026-08-05 with no reference to the June email,
+The report covered the same file, the same function, and the same mechanism
+as the independent code-level analysis in this document and in `WRITEUP.md`
+— re-derived from scratch on 2026-08-05 with no reference to the June report,
 which surfaced only afterward. The two converging independently, over five
 weeks apart, is itself evidence this isn't a marginal or unusual reading of
 the code.
-
-The June report additionally traced the chain one hop further than this
-pass did: past `internalComplete()` into `evmAcpClient.ts`'s
-`buildContractCall()` and the Alchemy `userOp` that actually executes
-on-chain — not independently re-verified in this document, but consistent
-with, and a natural continuation of, `SOURCES.md`'s own citation of
-`acpAgent.ts:1004`.
 
 **What's actually new as of this publication is not a second bug — it's
 non-response, verified against current commit state, not assumed:**

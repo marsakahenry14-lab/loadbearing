@@ -2,8 +2,7 @@
 
 > Reported to Virtuals' security team privately on 2026-06-29. No response at
 > any point; the 30-day disclosure window closed 2026-07-29. This write-up
-> follows. See `SOURCES.md` → "Disclosure" for the full timeline and the
-> original report text.
+> follows. See `SOURCES.md` → "Disclosure" for the full timeline.
 
 ## Problem
 
