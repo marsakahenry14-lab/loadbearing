@@ -1,9 +1,10 @@
 """
-Тесты loadbearing.
+Tests for loadbearing.
 
-Каждый тест из группы "регрессия" соответствует конкретной дыре, найденной при
-реализации замороженной спецификации LBS v0.1 — то есть месту, где текст спеки был
-недоопределён и код это вскрыл. Тесты фиксируют закрытое поведение.
+Each test in the "regression" group corresponds to a specific gap found while
+implementing the frozen LBS v0.1 specification — a place where the spec text
+was underdetermined and the code exposed it. These tests pin the closed
+behavior.
 """
 
 from lbs_core.graph import Hypergraph, Hyperedge, holds
@@ -16,7 +17,7 @@ def _g(nodes, edges, sink):
                       sink=sink)
 
 
-# ---------- базовая семантика holds ----------
+# ---------- basic holds() semantics ----------
 
 def test_conjunction_all_carrying():
     g = _g({"n1", "n2", "g"}, [("e1", {"n1", "n2"}, "g")], "g")
@@ -29,29 +30,30 @@ def test_disjunction_alternative_paths():
     g = _g({"n1", "n2", "g"},
            [("e1", {"n1"}, "g"), ("e2", {"n2"}, "g")], "g")
     assert holds(g)
-    assert holds(g.without_nodes(["n1"]))          # второй путь жив
-    assert not holds(g.without_nodes(["n1", "n2"]))  # оба пути перекрыты
+    assert holds(g.without_nodes(["n1"]))          # second path still lives
+    assert not holds(g.without_nodes(["n1", "n2"]))  # both paths closed off
 
 
-# ---------- регрессии найденных дыр ----------
+# ---------- regressions for spec gaps found during implementation ----------
 
 def test_regression_orphaned_sink_not_a_premise():
-    """Дыра #1: удаление всех путей к цели оставляло gamma без входящих дуг,
-    и она ложно считалась достигнутой посылкой."""
+    """Gap #1: removing every path to the goal left gamma with no incoming
+    edges, and it was falsely treated as an achieved premise."""
     g = _g({"n1", "n2", "g"},
            [("e1", {"n1"}, "g"), ("e2", {"n2"}, "g")], "g")
     assert not holds(g.without_nodes(["n1", "n2"]))
 
 
 def test_regression_removing_sink_returns_false_not_raises():
-    """Дыра #2: удаление самого sink роняло валидатор вместо честного False."""
+    """Gap #2: removing the sink itself crashed the validator instead of
+    returning an honest False."""
     g = _g({"n1", "g"}, [("e1", {"n1"}, "g")], "g")
     assert holds(g.without_nodes(["g"])) is False
 
 
 def test_regression_budget_zero_gives_und_not_lb():
-    """Дыра #3: budget=0 давал ложный LB (пустой перебор считался полным).
-    Правило асимметрии: 'не проверили' != 'замены нет'."""
+    """Gap #3: budget=0 produced a false LB (an empty search counted as
+    complete). Asymmetry rule: "not checked" != "no substitution exists"."""
     g = _g({"x", "g"}, [("e", {"x"}, "g")], "g")
     sub = Substitution("s1", [Hyperedge("e2", frozenset({"y"}), "g")], excludes_node="x")
     v = analyze(g, sigma=[sub], budget=0).verdicts["x"]
@@ -59,8 +61,9 @@ def test_regression_budget_zero_gives_und_not_lb():
 
 
 def test_regression_substitution_may_introduce_new_nodes():
-    """Дыра #4+#5: замена не могла вводить новые узлы, и holds не признавал
-    новые истоки из замен. Замена через новый узел y делает x сценой."""
+    """Gap #4+#5: a substitution couldn't introduce new nodes, and holds()
+    didn't recognize new sources coming from substitutions. A substitution
+    through a new node y makes x scaffolding."""
     g = _g({"x", "g"}, [("e", {"x"}, "g")], "g")
     sub = Substitution("s1", [Hyperedge("e2", frozenset({"y"}), "g")], excludes_node="x")
     v = analyze(g, sigma=[sub], budget=100).verdicts["x"]
@@ -69,20 +72,22 @@ def test_regression_substitution_may_introduce_new_nodes():
 
 
 def test_regression_orphaned_intermediate_node_not_a_premise():
-    """Дыра #6: осиротевший ПРОМЕЖУТОЧНЫЙ узел (не sink) ложно считался посылкой.
-    Обобщение дыры #1 на любой выводимый узел."""
-    # m выводится из a; g выводится из m. Удаляем a => m осиротел => g недостижим.
+    """Gap #6: an orphaned INTERMEDIATE node (not the sink) was falsely
+    treated as a premise. Generalizes gap #1 to any derived node."""
+    # m is derived from a; g is derived from m. Remove a => m is orphaned =>
+    # g is unreachable.
     g = _g({"a", "m", "g"},
            [("e1", {"a"}, "m"), ("e2", {"m"}, "g")], "g")
     assert holds(g)
-    assert not holds(g.without_nodes(["a"]))       # m осиротел, не стал посылкой
+    assert not holds(g.without_nodes(["a"]))       # m orphaned, not a premise
 
 
 # ---------- co-load-bearing (E1) ----------
 
 def test_co_load_bearing_pair_detected():
-    """Два узла по отдельности сцена, вместе несущие: одиночный тест метит их SC,
-    а поиск MLBS обязан поймать пару."""
+    """Two nodes individually scaffolding, jointly load-bearing: the
+    single-node test must label them SC, and the MLBS search must catch
+    the pair."""
     g = _g({"a", "b", "g"},
            [("ea", {"a"}, "g"), ("eb", {"b"}, "g")], "g")
     rep = analyze(g, sigma=[], sigma_completeness="enumerated")
@@ -91,31 +96,32 @@ def test_co_load_bearing_pair_detected():
     assert frozenset({"a", "b"}) in rep.mlbs_sets
 
 
-# ---------- интеграция: реальный пример ----------
+# ---------- integration: real example ----------
 
 def test_erc8183_example_shape():
-    """Реальный пример классифицируется устойчиво: 3 несущих, декоративные узлы —
-    сцена, найдены совместно несущие множества."""
+    """The real example classifies stably: 3 load-bearing nodes, decorative
+    nodes as scaffolding, co-load-bearing sets found."""
     from pathlib import Path
     from lbs_core.loader import load_scenario
     path = Path(__file__).parent.parent / "examples" / "erc8183_evaluator_independence.json"
     sc = load_scenario(path)
     rep = analyze(sc.graph, sigma=sc.sigma, sigma_completeness=sc.sigma_completeness)
-    # несущее ядро
+    # load-bearing core
     assert rep.verdicts["eval_output_trusted"].label == Label.LB
     assert rep.verdicts["eval_compromised"].label == Label.LB
-    # декоративные — сцена
+    # decorative -> scaffolding
     assert rep.verdicts["cosmetic_audit_badge"].label == Label.SC
     assert rep.verdicts["verbose_logging"].label == Label.SC
-    # есть совместно несущие множества размера 2
+    # a co-load-bearing set of size 2 exists
     assert any(len(m) == 2 for m in rep.mlbs_sets)
 
 
 def test_potpie_case_shape():
-    """Реальный кейс (cases/potpie-context-provenance): несущее ядро — отсутствие
-    trust-поля в схеме и точка записи claim; все 4 ingress + 7 egress каналов —
-    сцена по отдельности (патч одного не ломает атаку, пока жив альтернативный).
-    См. cases/potpie-context-provenance/WRITEUP.md и SOURCES.md."""
+    """Real case (cases/potpie-context-provenance): the load-bearing core is
+    the missing trust field in the schema and the point where the claim is
+    written; all 4 ingress + 7 egress channels are individually scaffolding
+    (patching one doesn't break the attack while an alternative survives).
+    See cases/potpie-context-provenance/WRITEUP.md and SOURCES.md."""
     from pathlib import Path
     from lbs_core.loader import load_scenario
     path = Path(__file__).parent.parent / "cases" / "potpie-context-provenance" / "scenario.json"
@@ -130,12 +136,13 @@ def test_potpie_case_shape():
 
 
 def test_erc8183_evaluator_integrity_case_shape():
-    """Реальный кейс (cases/erc8183-evaluator-integrity): несущее ядро — вся цепочка
-    от контроля провайдера над deliverable до verdict_flipped (7 узлов, включая
-    цель); две downstream-ветки (escrow / reputation) — сцена по отдельности, но
-    дают 4 совместно несущих пары (crossing двух независимых путей) — тот же
-    сигнатурный паттерн, что и в синтетическом examples/erc8183_evaluator_independence.json.
-    См. cases/erc8183-evaluator-integrity/WRITEUP.md и SOURCES.md."""
+    """Real case (cases/erc8183-evaluator-integrity): the load-bearing core is
+    the whole chain from provider control over the deliverable through
+    verdict_flipped (7 nodes, including the goal); the two downstream branches
+    (escrow / reputation) are individually scaffolding but yield 4
+    co-load-bearing pairs (crossing two independent paths) - the same
+    structural signature as the synthetic examples/erc8183_evaluator_independence.json.
+    See cases/erc8183-evaluator-integrity/WRITEUP.md and SOURCES.md."""
     from pathlib import Path
     from lbs_core.loader import load_scenario
     path = Path(__file__).parent.parent / "cases" / "erc8183-evaluator-integrity" / "scenario.json"
@@ -153,12 +160,12 @@ def test_erc8183_evaluator_integrity_case_shape():
 
 
 def test_potpie_graphrag_case_shape():
-    """Реальный кейс (cases/potpie-graphrag-prompt-injection): строго
-    последовательная цепочка (март 2026, pre-v2.0.0 Potpie) — все 6 узлов +
-    цель классифицируются как LB, сцены нет вообще. Контрольный кейс:
-    инструмент не изобретает структуру там, где её нет. Model choice и
-    tool allowlist намеренно НЕ закодированы как Σ — см. SOURCES.md.
-    См. cases/potpie-graphrag-prompt-injection/WRITEUP.md."""
+    """Real case (cases/potpie-graphrag-prompt-injection): a strictly
+    sequential chain (March 2026, pre-v2.0.0 Potpie) - all 6 nodes plus the
+    goal classify as LB, no scaffolding at all. Control case: the tool
+    doesn't invent structure where there is none. Model choice and the tool
+    allowlist are deliberately NOT encoded as Sigma - see SOURCES.md.
+    See cases/potpie-graphrag-prompt-injection/WRITEUP.md."""
     from pathlib import Path
     from lbs_core.loader import load_scenario
     path = Path(__file__).parent.parent / "cases" / "potpie-graphrag-prompt-injection" / "scenario.json"
@@ -174,14 +181,14 @@ def test_potpie_graphrag_case_shape():
 
 
 def test_acp_node_v2_case_shape():
-    """Реальный кейс (cases/acp-node-v2-evaluator-injection): оригинальная
-    находка (не формализация чужого disclosure). Живая цепочка в текущем
-    форке acp-node-v2 — deliverable, помеченный role:"system" в core SDK,
-    коллапсирует в role:"user" в shipped LLM-примерах, ровно когда evaluator
-    получает доступ к complete()/reject(). Все 6 узлов + цель — LB, сцены нет
-    (как и в potpie-graphrag, но эта цепочка ЖИВАЯ, не историческая).
-    См. cases/acp-node-v2-evaluator-injection/WRITEUP.md и SOURCES.md
-    (включая раздел про disclosure status)."""
+    """Real case (cases/acp-node-v2-evaluator-injection): an original finding
+    (not a formalization of someone else's disclosure). A live chain in the
+    current acp-node-v2 fork - a deliverable tagged role:"system" in the core
+    SDK collapses into role:"user" in the shipped LLM examples, exactly when
+    the evaluator gains access to complete()/reject(). All 6 nodes plus the
+    goal are LB, no scaffolding (same shape as potpie-graphrag, but this
+    chain is LIVE, not historical). See cases/acp-node-v2-evaluator-injection/WRITEUP.md
+    and SOURCES.md (including the disclosure status section)."""
     from pathlib import Path
     from lbs_core.loader import load_scenario
     path = Path(__file__).parent.parent / "cases" / "acp-node-v2-evaluator-injection" / "scenario.json"

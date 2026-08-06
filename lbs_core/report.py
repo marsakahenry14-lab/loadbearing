@@ -1,9 +1,9 @@
 """
-Человекочитаемый отчёт по результату анализа.
+Human-readable report of the analysis result.
 
-Отчёт — то, что читает аналитик. Он обязан быть честен относительно границ
-метода (v0.1): вердикт SC != "безопасно", а "устранимо в этом сценарии при этом Σ";
-LB помечается флагом, если Σ неполон (риск ложного LB).
+The report is what the analyst reads. It must be honest about the method's
+boundaries (v0.1): an SC verdict != "safe," it means "dispensable in this
+scenario under this Σ"; LB is flagged when Σ is incomplete (risk of a false LB).
 """
 
 from __future__ import annotations
@@ -18,74 +18,74 @@ def render_report(scenario: Scenario, report: Report) -> str:
     add = lines.append
 
     add("=" * 72)
-    add(f"LBS-анализ: {scenario.title}")
+    add(f"LBS analysis: {scenario.title}")
     add("=" * 72)
     add("")
-    add(f"Цель (gamma): {scenario.graph.sink}")
+    add(f"Goal (gamma): {scenario.graph.sink}")
     if scenario.graph.sink in txt:
         add(f"  {txt[scenario.graph.sink]}")
     add("")
-    add(f"Полнота Σ: {report.sigma_completeness}")
+    add(f"Σ completeness: {report.sigma_completeness}")
     if report.sigma_completeness == "best_effort":
-        add("  ВНИМАНИЕ: Σ неполон (best_effort). Вердикты LB условны: узел помечен")
-        add("  несущим, потому что замена не найдена в заданном Σ, а не потому что её")
-        add("  не существует. Пополнение Σ может перевести LB → SC.")
+        add("  NOTE: Σ is incomplete (best_effort). LB verdicts are conditional: a node")
+        add("  is marked load-bearing because no substitution was found in the given Σ,")
+        add("  not because none exists. Expanding Σ may turn LB -> SC.")
     add("")
 
-    # --- Несущие ---
+    # --- Load-bearing ---
     lb = [n for n, v in report.verdicts.items() if v.label == Label.LB]
-    add(f"НЕСУЩИЕ МЕХАНИЗМЫ (LB) — {len(lb)}:")
-    add("  Без любого из них цель недостижима. Это точки контроля / кандидаты в контрмеры.")
+    add(f"LOAD-BEARING MECHANISMS (LB) — {len(lb)}:")
+    add("  The goal is unreachable without any one of them. These are control points / countermeasure candidates.")
     for n in sorted(lb):
         add(f"  [LB] {n}")
         if n in txt:
             add(f"       {txt[n]}")
     add("")
 
-    # --- Сцена ---
+    # --- Scaffolding ---
     sc = [n for n, v in report.verdicts.items() if v.label == Label.SC]
-    add(f"СЦЕНА (SC) — {len(sc)}:")
-    add("  Присутствуют, но по отдельности устранимы: цель достижима и без них.")
-    add("  ВНИМАНИЕ: SC не означает 'безопасно' или 'бесполезно' — означает 'в этом")
-    add("  сценарии при этом Σ удаление одного этого узла не ломает цель'. См. MLBS ниже.")
+    add(f"SCAFFOLDING (SC) — {len(sc)}:")
+    add("  Present, but individually dispensable: the goal is reachable without them.")
+    add("  NOTE: SC does not mean 'safe' or 'useless' — it means 'in this scenario,")
+    add("  under this Σ, removing this one node does not break the goal.' See MLBS below.")
     for n in sorted(sc):
         v = report.verdicts[n]
-        wit = f"  (свидетель: {v.witness})" if v.witness else ""
+        wit = f"  (witness: {v.witness})" if v.witness else ""
         add(f"  [SC] {n}{wit}")
         if n in txt:
             add(f"       {txt[n]}")
     add("")
 
-    # --- Неопределённость ---
+    # --- Undetermined ---
     und = [n for n, v in report.verdicts.items() if v.label == Label.UND]
     if und:
-        add(f"НЕОПРЕДЕЛЁННОСТЬ (UND) — {len(und)}:")
-        add("  Бюджет перебора исчерпан до полного. НЕ классифицированы как несущие.")
-        add("  Требуется: поднять бюджет либо сократить/структурировать Σ.")
+        add(f"UNDETERMINED (UND) — {len(und)}:")
+        add("  The search budget was exhausted before completion. NOT classified as load-bearing.")
+        add("  Needed: raise the budget, or reduce/restructure Σ.")
         for n in sorted(und):
             add(f"  [UND] {n}  ({report.verdicts[n].reason})")
         add("")
 
     # --- MLBS ---
-    add("МИНИМАЛЬНЫЕ НЕСУЩИЕ МНОЖЕСТВА (MLBS):")
-    add("  Каждое множество — минимальный набор, одновременное удаление которого ломает")
-    add("  цель. Размер 1 = одиночный несущий узел. Размер >= 2 = совместно несущие")
-    add("  (co-load-bearing): по отдельности сцена, вместе необходимы. Множества размера")
-    add("  >= 2 показывают АЛЬТЕРНАТИВНЫЕ пути: чтобы перекрыть цель, надо выбить по")
-    add("  одному узлу из каждого независимого пути.")
+    add("MINIMAL LOAD-BEARING SETS (MLBS):")
+    add("  Each set is a minimal group whose simultaneous removal breaks the goal.")
+    add("  Size 1 = a single load-bearing node. Size >= 2 = co-load-bearing:")
+    add("  individually scaffolding, jointly necessary. Sets of size >= 2 show")
+    add("  ALTERNATIVE paths: to close off the goal, knock out one node from each")
+    add("  independent path.")
     singles = [m for m in report.mlbs_sets if len(m) == 1]
     multis = [m for m in report.mlbs_sets if len(m) >= 2]
     for m in sorted(singles, key=lambda s: sorted(s)):
-        add(f"  {{{', '.join(sorted(m))}}}  (одиночный несущий)")
+        add(f"  {{{', '.join(sorted(m))}}}  (single load-bearing node)")
     for m in sorted(multis, key=lambda s: (len(s), sorted(s))):
-        add(f"  {{{', '.join(sorted(m))}}}  (совместно несущее, size {len(m)})")
+        add(f"  {{{', '.join(sorted(m))}}}  (co-load-bearing, size {len(m)})")
     add("")
 
-    # --- Сводка ---
+    # --- Summary ---
     add("-" * 72)
     c = report.counts
-    add(f"Итог: LB={c['LB']}  SC={c['SC']}  UND={c['UND']}  |  MLBS={len(report.mlbs_sets)}")
-    add("Доли по LB/SC считаются без UND в знаменателе (UND = не разрешено при бюджете).")
+    add(f"Totals: LB={c['LB']}  SC={c['SC']}  UND={c['UND']}  |  MLBS={len(report.mlbs_sets)}")
+    add("LB/SC proportions are computed without UND in the denominator (UND = not resolved within budget).")
     add("-" * 72)
 
     return "\n".join(lines)

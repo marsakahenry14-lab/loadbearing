@@ -1,9 +1,9 @@
 """
-CLI: анализ сценария несущий/сцена.
+CLI: load-bearing/scaffolding scenario analysis.
 
-Использование:
+Usage:
     python -m lbs_core.cli examples/erc8183_evaluator_independence.json
-    python -m lbs_core.cli scenario.json --json        # машиночитаемый вывод
+    python -m lbs_core.cli scenario.json --json        # machine-readable output
     python -m lbs_core.cli scenario.json --budget 5000 --max-set-size 3
 """
 
@@ -17,9 +17,9 @@ from .loader import load_scenario
 from .classify import analyze, Label
 from .report import render_report
 
-# Вывод содержит кириллицу и не-ASCII символы (→, Σ); консоль Windows по
-# умолчанию использует cp1252/cp866 и падает на encode. Принудительно
-# переключаем stdout/stderr на UTF-8, если интерпретатор это позволяет.
+# Output contains non-ASCII characters (→, Σ); Windows consoles default to
+# cp1252/cp866 and fail to encode them. Force stdout/stderr to UTF-8 whenever
+# the interpreter allows it.
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
@@ -44,20 +44,20 @@ def _report_to_dict(scenario, report) -> dict:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         prog="loadbearing",
-        description="Детерминированный анализ несущий/сцена (LBS) для attack graphs.",
+        description="Deterministic load-bearing/scaffolding (LBS) analysis for attack graphs.",
     )
-    p.add_argument("scenario", help="путь к JSON-сценарию (attack graph)")
-    p.add_argument("--json", action="store_true", help="машиночитаемый вывод (JSON)")
+    p.add_argument("scenario", help="path to the JSON scenario (attack graph)")
+    p.add_argument("--json", action="store_true", help="machine-readable output (JSON)")
     p.add_argument("--budget", type=int, default=10_000,
-                   help="бюджет перебора замен на узел (по умолчанию 10000)")
+                   help="substitution search budget per node (default 10000)")
     p.add_argument("--max-set-size", type=int, default=3,
-                   help="макс. размер проверяемых MLBS-множеств (по умолчанию 3)")
+                   help="max size of MLBS sets checked (default 3)")
     args = p.parse_args(argv)
 
     try:
         scenario = load_scenario(args.scenario)
     except (OSError, ValueError) as e:
-        print(f"Ошибка загрузки сценария: {e}", file=sys.stderr)
+        print(f"Error loading scenario: {e}", file=sys.stderr)
         return 2
 
     report = analyze(

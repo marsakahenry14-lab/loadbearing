@@ -1,7 +1,7 @@
-"""loadbearing: детерминированный анализатор несущий/сцена для attack graphs.
+"""loadbearing: deterministic load-bearing/scaffolding analyzer for attack graphs.
 
-Ядро семантики зафиксировано спецификацией LBS v0.1. Пакет не обращается к сети
-и не использует LLM — это чистый анализатор графа.
+The core semantics are fixed by the LBS v0.1 specification. The package makes
+no network calls and uses no LLM — it's a pure graph analyzer.
 """
 
 from .graph import Hypergraph, Hyperedge, holds

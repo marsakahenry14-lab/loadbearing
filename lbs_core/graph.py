@@ -1,17 +1,21 @@
 """
-Гиперграф вывода и предикат достижимости.
+Inference hypergraph and the reachability predicate.
 
-Семантика зафиксирована спецификацией LBS v0.1, раздел 9 (замороженное ядро):
-- Узлы V — атомарные утверждения/шаги.
-- Гипердуга e = (tail, head): множество посылок tail СОВМЕСТНО достаточно для head.
-  Обычное ребро причинного DAG — частный случай гипердуги с |tail| == 1.
-- Дизъюнкция ("head достижим через e1 ЛИБО e2") выражается несколькими гипердугами
-  с одним и тем же head.
-- holds(gamma) == существует ли гиперпуть от истоков (узлы без входящих гипердуг,
-  т.е. посылки/аксиомы) к gamma целиком внутри текущего гиперграфа.
-- Удаление узла n: убрать n и ВСЕ гипердуги, где n входит в tail или является head.
+Semantics are fixed by the LBS v0.1 specification, section 9 (frozen core):
+- Nodes V — atomic claims/steps.
+- Hyperedge e = (tail, head): the set of premises tail is JOINTLY sufficient
+  for head. An ordinary edge of a causal DAG is the special case of a
+  hyperedge with |tail| == 1.
+- Disjunction ("head is reachable via e1 OR e2") is expressed as several
+  hyperedges sharing the same head.
+- holds(gamma) == does a hyperpath exist from the sources (nodes with no
+  incoming hyperedges, i.e. premises/axioms) to gamma, entirely within the
+  current hypergraph.
+- Removing a node n: drop n and ALL hyperedges where n appears in tail or is
+  the head.
 
-Модуль не содержит недетерминизма и не обращается к сети (инвариант ядра).
+The module has no non-determinism and makes no network calls (a core
+invariant).
 """
 
 from __future__ import annotations
@@ -22,82 +26,86 @@ from typing import Iterable
 
 @dataclass(frozen=True)
 class Hyperedge:
-    """Гипердуга: tail СОВМЕСТНО достаточно для head.
+    """Hyperedge: tail is JOINTLY sufficient for head.
 
-    tail — неизменяемое множество имён узлов (frozenset для хешируемости).
-    head — имя одного узла.
-    eid  — стабильный идентификатор гипердуги (для журналов и свидетелей).
+    tail — an immutable set of node names (frozenset for hashability).
+    head — a single node name.
+    eid  — a stable hyperedge identifier (for logs and witnesses).
     """
     eid: str
     tail: frozenset[str]
     head: str
 
     def uses(self, node: str) -> bool:
-        """True, если узел участвует в этой гипердуге (в tail или как head)."""
+        """True if the node participates in this hyperedge (in tail or as head)."""
         return node in self.tail or node == self.head
 
 
 @dataclass
 class Hypergraph:
-    """Гиперграф вывода с единственным стоком gamma.
+    """An inference hypergraph with a single sink gamma.
 
-    nodes  — множество всех узлов.
-    edges  — список гипердуг.
-    sink   — целевой узел gamma (единственный; предположение A7 спецификации).
+    nodes  — the set of all nodes.
+    edges  — the list of hyperedges.
+    sink   — the target node gamma (single; spec assumption A7).
     """
     nodes: set[str]
     edges: list[Hyperedge]
     sink: str
-    # Истоки исходного графа. Задаются только при первичном построении; при
-    # порождении подграфов (without_nodes / with_added_edges) пробрасываются
-    # неизменными, чтобы holds различал "gamma-посылка" и "gamma-осиротела".
+    # Sources of the original graph. Set only on initial construction; when
+    # deriving subgraphs (without_nodes / with_added_edges) they're carried
+    # through unchanged, so holds() can distinguish "gamma is a premise" from
+    # "gamma was orphaned."
     _original_sources: set[str] | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
-        # Валидация структуры на входе — дешёвая защита от битого графа.
-        # sink обязан быть среди узлов ТОЛЬКО в первичном графе (_original_sources
-        # ещё не задан). В порождённых подграфах цель могла быть легально удалена —
-        # тогда holds() честно вернёт False, а не бросит исключение.
+        # Validate structure on input — a cheap guard against a broken graph.
+        # sink must be among the nodes ONLY on the initial graph
+        # (_original_sources not yet set). In derived subgraphs the goal may
+        # have been legitimately removed — then holds() honestly returns
+        # False instead of raising.
         if self._original_sources is None and self.sink not in self.nodes:
-            raise ValueError(f"sink {self.sink!r} отсутствует среди узлов")
+            raise ValueError(f"sink {self.sink!r} is missing from nodes")
         for e in self.edges:
             missing = (set(e.tail) | {e.head}) - self.nodes
             if missing:
                 raise ValueError(
-                    f"гипердуга {e.eid!r} ссылается на неизвестные узлы: {sorted(missing)}"
+                    f"hyperedge {e.eid!r} references unknown nodes: {sorted(missing)}"
                 )
-        # При первичном построении фиксируем истоки как посылки исходной задачи.
+        # On initial construction, fix the sources as premises of the
+        # original problem.
         if self._original_sources is None:
             heads = {e.head for e in self.edges}
             self._original_sources = {n for n in self.nodes if n not in heads}
 
     def sources(self) -> set[str]:
-        """Истоки: узлы, не являющиеся head ни одной гипердуги (посылки/аксиомы)."""
+        """Sources: nodes that are not the head of any hyperedge (premises/axioms)."""
         heads = {e.head for e in self.edges}
         return {n for n in self.nodes if n not in heads}
 
     def original_sources(self) -> set[str]:
-        """Истоки ИСХОДНОГО графа (посылки, заданные как таковые при построении).
+        """Sources of the ORIGINAL graph (premises fixed as such at construction time).
 
-        Нужны, чтобы отличить "gamma была посылкой" от "gamma осталась без входящих
-        дуг после удаления узлов". Во втором случае цель НЕ считается достигнутой:
-        удаление всех выводящих её дуг обязано ломать holds. Фиксируется один раз
-        при создании графа."""
+        Needed to distinguish "gamma was a premise" from "gamma ended up with
+        no incoming edges after nodes were removed." In the second case the
+        goal is NOT considered achieved: removing every edge that derives it
+        must break holds. Fixed once when the graph is created."""
         return self._original_sources
 
-    def __hash__(self):  # noqa: D401 - dataclass не frozen, хеш по id для кеша
+    def __hash__(self):  # noqa: D401 - dataclass isn't frozen, hash by id for caching
         return id(self)
 
     def without_nodes(self, removed: Iterable[str]) -> "Hypergraph":
-        """Вернуть копию графа без указанных узлов и всех инцидентных им гипердуг.
+        """Return a copy of the graph without the given nodes and every incident hyperedge.
 
-        Реализует операцию удаления из v0.1 §9: H ⊖ M.
+        Implements the removal operation from v0.1 §9: H ⊖ M.
         """
         removed_set = set(removed)
         new_nodes = self.nodes - removed_set
         new_edges = [e for e in self.edges if not any(e.uses(n) for n in removed_set)]
-        # sink может быть удалён — тогда граф теряет цель; holds на нём вернёт False.
-        # Исходные истоки пробрасываем неизменными (за вычетом удалённых узлов).
+        # sink may be removed — then the graph loses its goal; holds() on it
+        # returns False. Original sources are carried through unchanged
+        # (minus the removed nodes).
         return Hypergraph(
             nodes=new_nodes,
             edges=new_edges,
@@ -106,15 +114,16 @@ class Hypergraph:
         )
 
     def with_added_edges(self, added: Iterable[Hyperedge]) -> "Hypergraph":
-        """Вернуть копию графа с добавленными гипердугами (применение замены из Σ)."""
+        """Return a copy of the graph with hyperedges added (applying a substitution from Σ)."""
         added_list = list(added)
-        # Узлы, впервые появляющиеся в добавленных дугах, вводятся в граф.
+        # Nodes appearing for the first time in the added edges are introduced
+        # into the graph.
         extra_nodes: set[str] = set()
         for e in added_list:
             extra_nodes |= set(e.tail) | {e.head}
         all_edges = self.edges + added_list
-        # Новые узлы, не являющиеся head ни одной дуги, — законные посылки
-        # альтернативного подвывода: регистрируем их как истоки.
+        # New nodes that aren't the head of any edge are legitimate premises
+        # of the alternative sub-derivation: register them as sources.
         heads = {e.head for e in all_edges}
         genuinely_new_sources = {n for n in extra_nodes if n not in heads}
         return Hypergraph(
@@ -126,28 +135,29 @@ class Hypergraph:
 
 
 def holds(graph: Hypergraph) -> bool:
-    """Предикат достижения цели: достижим ли gamma из истоков по гиперпутям.
+    """Goal-reachability predicate: is gamma reachable from the sources via hyperpaths?
 
-    Алгоритм — восходящее замыкание (forward chaining):
-      derived := истоки
-      повторять: если у гипердуги ВЕСЬ tail ⊆ derived, добавить head в derived
-      пока derived растёт.
-    gamma достижим ⟺ gamma ∈ derived.
+    Algorithm — bottom-up closure (forward chaining):
+      derived := sources
+      repeat: if a hyperedge's ENTIRE tail ⊆ derived, add head to derived
+      until derived stops growing.
+    gamma is reachable ⟺ gamma ∈ derived.
 
-    Сложность полиномиальна: каждый проход O(|E|), проходов не больше |V|.
-    Это и есть holds(H, gamma) из v0.1 §9 для kind="reachability".
+    Polynomial complexity: each pass is O(|E|), at most |V| passes.
+    This is holds(H, gamma) from v0.1 §9 for kind="reachability".
     """
     if graph.sink not in graph.nodes:
-        return False  # цель была удалена вместе с узлом
+        return False  # the goal was removed along with a node
 
-    # Посылка = узел, бывший истоком В ИСХОДНОМ графе. Узел, осиротевший после
-    # удаления всех выводящих его дуг, посылкой НЕ становится — иначе удаление
-    # несущего механизма ложно "выводило" бы зависящие от него узлы. Это правило
-    # действует для ЛЮБОГО узла (не только sink): промежуточный узел, потерявший
-    # все входящие дуги, перестаёт быть достижимым, а не превращается в аксиому.
+    # A premise is a node that was a source IN THE ORIGINAL graph. A node
+    # orphaned after all the edges deriving it are removed does NOT become a
+    # premise — otherwise removing a load-bearing mechanism would falsely
+    # "derive" the nodes that depend on it. This rule applies to ANY node
+    # (not just the sink): an intermediate node that lost all its incoming
+    # edges stops being reachable, it doesn't turn into an axiom.
     derived: set[str] = set(graph.original_sources()) & graph.nodes
     if graph.sink in derived:
-        return True  # gamma действительно была посылкой исходной задачи
+        return True  # gamma really was a premise of the original problem
 
     changed = True
     while changed:

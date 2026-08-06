@@ -1,17 +1,17 @@
 {
-  "title": "ERC-8183 evaluator-independence bypass (упрощённая модель)",
+  "title": "ERC-8183 evaluator-independence bypass (simplified model)",
   "goal": "attack_succeeds",
   "nodes": {
-    "attack_succeeds": "Злоумышленный агент проводит расчёт по завышенной оценке в обход независимой проверки",
-    "eval_output_trusted": "Расчётный контракт принимает вердикт оценщика как основание для расчёта",
-    "eval_compromised": "Вердикт оценщика отражает интерес злоумышленника, а не независимую оценку",
-    "shared_input_channel": "Оценщик и оцениваемый агент получают вход по одному каналу, контролируемому агентом",
-    "no_input_attestation": "Отсутствует криптографическая аттестация происхождения входа оценщика",
-    "collusion_incentive": "Экономический стимул к сговору оценщика с агентом положителен",
-    "stake_below_gain": "Стейк оценщика ниже выгоды от искажённой оценки",
-    "no_independent_reeval": "Отсутствует независимая переоценка вторым оценщиком",
-    "cosmetic_audit_badge": "Протокол отображает бейдж 'audited', создающий впечатление защищённости",
-    "verbose_logging": "Включено подробное логирование действий оценщика"
+    "attack_succeeds": "A malicious agent settles at an inflated valuation, bypassing independent review",
+    "eval_output_trusted": "The settlement contract accepts the evaluator's verdict as the basis for settlement",
+    "eval_compromised": "The evaluator's verdict reflects the attacker's interest, not an independent assessment",
+    "shared_input_channel": "The evaluator and the agent being evaluated receive input over one channel controlled by the agent",
+    "no_input_attestation": "There is no cryptographic attestation of the origin of the evaluator's input",
+    "collusion_incentive": "There is a positive economic incentive for the evaluator to collude with the agent",
+    "stake_below_gain": "The evaluator's stake is lower than the gain from a distorted evaluation",
+    "no_independent_reeval": "There is no independent re-evaluation by a second evaluator",
+    "cosmetic_audit_badge": "The protocol displays an 'audited' badge, creating an impression of safety",
+    "verbose_logging": "Verbose logging of the evaluator's actions is enabled"
   },
   "edges": [
     { "id": "e1", "tail": ["eval_output_trusted", "eval_compromised"], "head": "attack_succeeds" },
@@ -29,5 +29,5 @@
     }
   ],
   "sigma_completeness": "best_effort",
-  "_note_for_reader": "eval_compromised достижим ДВУМЯ путями: через (shared_input_channel + no_input_attestation) ЛИБО через collusion_incentive. Поэтому эти пути по отдельности — сцена, а вместе несущие (co-load-bearing). eval_output_trusted и eval_compromised — несущие (без любого из них конъюнкция e1 рушится). cosmetic_audit_badge и verbose_logging в граф вывода атаки не входят вовсе — они присутствуют в системе, но атаку не несут: чистая декоративная сцена."
+  "_note_for_reader": "eval_compromised is reachable via TWO paths: through (shared_input_channel + no_input_attestation) OR through collusion_incentive. So these paths are individually scaffolding, but jointly load-bearing (co-load-bearing). eval_output_trusted and eval_compromised are load-bearing (without either one, conjunction e1 collapses). cosmetic_audit_badge and verbose_logging aren't part of the attack's inference graph at all — they're present in the system but don't carry the attack: pure decorative scaffolding."
 }

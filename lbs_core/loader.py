@@ -1,31 +1,31 @@
 """
-Загрузка сценария (attack graph) из JSON в объекты ядра.
+Load a scenario (attack graph) from JSON into core objects.
 
-Формат входного файла — простой и человекочитаемый; это единственный формат,
-который аналитик правит руками. Схема (все поля обязательны, кроме sigma):
+The input file format is simple and human-readable; it's the only format an
+analyst edits by hand. Schema (all fields required except sigma):
 
 {
-  "title": "человекочитаемое имя сценария",
-  "goal": "g",                       // целевой узел (атака достигнута / инвариант нарушен)
+  "title": "human-readable scenario name",
+  "goal": "g",                       // target node (attack achieved / invariant broken)
   "nodes": {
-     "g":  "злоумышленник проводит расчёт в обход оценщика",
-     "n1": "оценщик и исполнитель разделяют канал ввода",
+     "g":  "the attacker completes the payout, bypassing the evaluator",
+     "n1": "the evaluator and the executor share the same input channel",
      ...
   },
   "edges": [
-     { "id": "e1", "tail": ["n1","n2"], "head": "g" },   // tail СОВМЕСТНО дают head
+     { "id": "e1", "tail": ["n1","n2"], "head": "g" },   // tail JOINTLY gives head
      ...
   ],
-  "sigma": [                          // допустимые замены (обходные подвыводы); опционально
+  "sigma": [                          // admissible substitutions (alternative sub-derivations); optional
      { "id": "s1", "excludes_node": "n1",
        "added_edges": [ { "id": "s1e1", "tail": ["n9"], "head": "g" } ] }
   ],
   "sigma_completeness": "best_effort" // enumerated | rule_closed | best_effort
 }
 
-Тексты узлов носят только пояснительный характер (для отчёта); на классификацию
-влияет исключительно структура (edges, sigma). Это соответствие v0.1: вердикт —
-функция графа, не формулировок.
+Node texts are explanatory only (for the report); classification is driven
+solely by structure (edges, sigma). This matches v0.1: the verdict is a
+function of the graph, not of the wording.
 """
 
 from __future__ import annotations
@@ -44,40 +44,40 @@ class Scenario:
     graph: Hypergraph
     sigma: list[Substitution]
     sigma_completeness: str
-    node_text: dict[str, str]        # id -> человекочитаемое описание (для отчёта)
+    node_text: dict[str, str]        # id -> human-readable description (for the report)
 
 
 def _parse_edge(raw: dict, ctx: str) -> Hyperedge:
     for key in ("id", "tail", "head"):
         if key not in raw:
-            raise ValueError(f"{ctx}: в ребре отсутствует поле {key!r}: {raw}")
+            raise ValueError(f"{ctx}: edge is missing field {key!r}: {raw}")
     if not isinstance(raw["tail"], list) or not raw["tail"]:
-        raise ValueError(f"{ctx}: tail ребра {raw['id']!r} должен быть непустым списком")
+        raise ValueError(f"{ctx}: tail of edge {raw['id']!r} must be a non-empty list")
     return Hyperedge(eid=str(raw["id"]),
                      tail=frozenset(str(t) for t in raw["tail"]),
                      head=str(raw["head"]))
 
 
 def load_scenario(path: str | Path) -> Scenario:
-    """Прочитать и провалидировать сценарий из JSON-файла."""
+    """Read and validate a scenario from a JSON file."""
     data = json.loads(Path(path).read_text(encoding="utf-8"))
 
     for key in ("goal", "nodes", "edges"):
         if key not in data:
-            raise ValueError(f"в сценарии отсутствует обязательное поле {key!r}")
+            raise ValueError(f"scenario is missing required field {key!r}")
 
     node_text: dict[str, str] = {str(k): str(v) for k, v in data["nodes"].items()}
     nodes = set(node_text.keys())
     goal = str(data["goal"])
     if goal not in nodes:
-        raise ValueError(f"goal {goal!r} отсутствует среди nodes")
+        raise ValueError(f"goal {goal!r} is missing from nodes")
 
     edges = [_parse_edge(e, "edges") for e in data["edges"]]
 
     sigma: list[Substitution] = []
     for s in data.get("sigma", []):
         if "id" not in s or "added_edges" not in s:
-            raise ValueError(f"замена sigma требует полей id и added_edges: {s}")
+            raise ValueError(f"sigma substitution requires id and added_edges fields: {s}")
         added = [_parse_edge(e, f"sigma[{s['id']}]") for e in s["added_edges"]]
         sigma.append(Substitution(
             sid=str(s["id"]),
