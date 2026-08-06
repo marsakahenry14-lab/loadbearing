@@ -1,9 +1,9 @@
 # Case: evaluator injection in Virtual Protocol's official ACP SDK
 
-> **This case has not been responsibly disclosed.** It targets the live,
-> currently maintained upstream SDK. Read `SOURCES.md`'s "Disclosure status"
-> section before publishing this write-up or its repository publicly, or
-> acting on it in any other way.
+> Reported to Virtuals' security team privately on 2026-06-29. No response at
+> any point; the 30-day disclosure window closed 2026-07-29. This write-up
+> follows. See `SOURCES.md` → "Disclosure" for the full timeline and the
+> original report text.
 
 ## Problem
 
@@ -40,14 +40,16 @@ a hypothetical configuration. It's what running the official example does.
 
 ## Method
 
-No prior disclosure existed to formalize — this was found by reading the
-SDK's own shipped example code end to end and tracing every claim back to the
-core library that backs it, holding the finding to the same "verified
-directly, file:line" bar the other three cases in this repository apply to
-external disclosures. The target repository is a fork the repo owner synced
-to current upstream (`Virtual-Protocol/acp-node-v2`) immediately before this
-analysis, specifically so the review would be against current code, not a
-stale local copy — the same discipline applied in
+No prior disclosure was consulted while producing this analysis — it turned
+out one existed (a private report sent 2026-06-29, surfaced only after this
+write-up was already drafted; see `SOURCES.md`), but the finding here was
+independently re-derived by reading the SDK's own shipped example code end to
+end and tracing every claim back to the core library that backs it, holding
+it to the same "verified directly, file:line" bar the other three cases in
+this repository apply to external disclosures. The target repository is a
+fork the repo owner synced to current upstream (`Virtual-Protocol/acp-node-v2`)
+immediately before this analysis, specifically so the review would be against
+current code, not a stale local copy — the same discipline applied in
 `cases/potpie-graphrag-prompt-injection`'s re-verification pass.
 
 Modeled the confirmed chain as a strict causal sequence in `scenario.json`:

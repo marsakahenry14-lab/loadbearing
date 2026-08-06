@@ -147,6 +147,37 @@ underlying provenance gap resurfaced in the rewrite. See
 [`WRITEUP.md`](cases/potpie-graphrag-prompt-injection/WRITEUP.md) and
 [`SOURCES.md`](cases/potpie-graphrag-prompt-injection/SOURCES.md).
 
+### acp-node-v2 evaluator injection — Virtual Protocol's official ACP SDK
+
+[`cases/acp-node-v2-evaluator-injection/`](cases/acp-node-v2-evaluator-injection/)
+is the one case here that isn't a formalization of an existing write-up — it's
+original source review of `Virtual-Protocol/acp-node-v2`. `JobSession.toMessages()`
+tags a provider-controlled `deliverable` string `role: "system"`; the SDK's own
+shipped LLM examples then coerce `role: "system"` into `role: "user"`, because
+Anthropic's Messages API has no inline system role, string-concatenating
+untrusted content onto the adjacent turn with no boundary. That lands exactly
+when the SDK's tool-availability matrix grants `complete`/`reject` to the
+`evaluator` role — and the shipped `buyer.ts` example sets the buyer as its
+own job's evaluator by default, so evaluator-is-the-buyer's-own-LLM is not a
+hypothetical, it's what the official example does.
+
+All seven nodes load-bearing, zero scaffolding — same shape as the GraphRAG
+control case above, except this chain is live today, with no compensating
+control anywhere in it. Independently corroborated by this author's own
+on-chain forensics ([`virtuals-forensics`](https://github.com/marsakahenry14-lab/virtuals-forensics),
+a different kind of evidence entirely — deterministic analysis of 62,953
+on-chain jobs, no code review, no LLM inference): 212 real addresses already
+operate as client==evaluator on the ERC-8183 predecessor contract, and 98.5%
+of near-empty deliverables still resulted in payment release. Reported to
+Virtuals' security team privately on 2026-06-29; no response at any point; the
+30-day disclosure window closed 2026-07-29 with the vulnerable code unchanged
+before, during, and after. See
+[`WRITEUP.md`](cases/acp-node-v2-evaluator-injection/WRITEUP.md),
+[`SOURCES.md`](cases/acp-node-v2-evaluator-injection/SOURCES.md) (full
+disclosure timeline and original report text), and
+[`DISCOVERY-WALKTHROUGH.md`](cases/acp-node-v2-evaluator-injection/DISCOVERY-WALKTHROUGH.md)
+for the grep-by-grep account of how this was found.
+
 ### Synthetic: ERC-8183 evaluator independence
 
 `examples/erc8183_evaluator_independence.json` models a simplified scenario of
